@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -25,7 +26,7 @@ enum editorKey{
 };
 
 /*** data ***/
-typedef struct erow{
+typedef struct erow{ //editor row
     int size;
     char *chars;
 }erow;
@@ -68,7 +69,8 @@ void abFree(struct abuf *ab){ //free the memory allocated for the buffer
 void editorDrawRows(struct abuf *ab){
     int y;
     for(y = 0; y < E.screenrows; y++){
-        if(y == E.screenrows / 3){
+        if(y >= E.numrows){
+            if(y == E.screenrows / 3){
             char welcome[80];
             int welcomelen = snprintf(welcome, sizeof(welcome), 
                 "Trill editor -- version %s", TRILL_VERSION);
@@ -85,6 +87,12 @@ void editorDrawRows(struct abuf *ab){
         {
             abAppend(ab, "~", 1);
         }
+        }else{
+            int len = E.row.size; //get the length of the row
+            if(len > E.screencols) len = E.screencols; //if the length of the row is greater than the screen width, set the length to the screen width
+            abAppend(ab, E.row.chars, len);//append the row to the buffer
+        }
+        
         
 
         abAppend(ab, "\x1b[K", 3); //clear the line
@@ -244,6 +252,18 @@ int getWindowSize(int *rows, int *cols){
     }
 }
 
+/*** file i/o ***/
+void editorOpen(){
+    char* line = "Hello, World!";
+    ssize_t linelen = 13;
+
+    E.row.size = linelen;
+    E.row.chars = malloc(linelen +1);
+    memcpy(E.row.chars, line, linelen);
+    E.row.chars[linelen] = '\0';
+    E.numrows = 1; 
+}
+
 /*** input ***/
 void editorMoveCursor(int key){
     switch(key){
@@ -308,6 +328,7 @@ void initEditor(){
 int main(){
     enableRawMode();
     initEditor();
+    editorOpen();
 
     while(1){
         editorRefreshScreen(0);
